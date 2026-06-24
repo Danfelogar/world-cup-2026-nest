@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── TEAMS ───────────────────────────────────────────────────────────────────
+
+model NationalTeam {
+  id          String @id @default(cuid())
+  fbrefId     String @unique
+  name        String
+  country     String
+  flagCode    String
+  fifaRanking Int?
+  group       String
+  fbrefUrl    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teamStats   TeamStats[]
+  players     Player[]
+  matchesHome Match[]                @relation("HomeTeam")
+  matchesAway Match[]                @relation("AwayTeam")
+  predictions GroupStagePrediction[]
+  knockouts   KnockoutPrediction[]
+
+  @@index([group])
+}
+
+model TeamStats {
+  id              String @id @default(cuid())
+  teamId          String
+  competition     String
+  season          String
+  matchesPlayed   Int    @default(0)
+  wins            Int    @default(0)
+  draws           Int    @default(0)
+  losses          Int    @default(0)
+  goalsFor        Int    @default(0)
+  goalsAgainst    Int    @default(0)
+  goalDiff        Int    @default(0)
+  cleanSheets     Int    @default(0)
+  avgGoalsFor     Float  @default(0)
+  avgGoalsAgainst Float  @default(0)
+  form            String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team NationalTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, competition, season])
+  @@index([teamId])
+}
+
+model Player {
+  id       String  @id @default(cuid())
+  fbrefId  String  @unique
+  name     String
+  position String?
+  age      Int?
+  teamId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team        NationalTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playerStats PlayerStats[]
+
+  @@index([teamId])
+}
+
+model PlayerStats {
+  id            String @id @default(cuid())
+  playerId      String
+  competition   String
+  season        String
+  matchesPlayed Int    @default(0)
+  starts        Int    @default(0)
+  minutes       Int    @default(0)
+  goals         Int    @default(0)
+  assists       Int    @default(0)
+  goalsAssists  Int    @default(0)
+  yellowCards   Int    @default(0)
+  redCards      Int    @default(0)
+  goalsPer90    Float?
+  assistsPer90  Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+}
+
+model Match {
+  id           String   @id
+  homeTeamId   String
+  awayTeamId   String
+  competition  String
+  round        String?
+  matchDate    DateTime
+  venue        String?
+  homeScore    Int?
+  awayScore    Int?
+  result       String?
+  formation    String?
+  oppFormation String?
+  attendance   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  homeTeam NationalTeam @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam NationalTeam @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
+
+model ScrapingLog {
+  id       String  @id @default(cuid())
+  url      String
+  status   String
+  duration Int?
+  message  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+}
+
+model GroupStagePrediction {
+  id                    String  @id @default(cuid())
+  teamId                String
+  groupName             String
+  predictedPosition     Int
+  predictedPoints       Int
+  predictedGoalsFor     Int
+  predictedGoalsAgainst Int
+  advancesToKnockout    Boolean @default(false)
+  confidence            Float   @default(0)
+  reasoning             String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team NationalTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId])
+  @@index([groupName])
+}
+
+model KnockoutPrediction {
+  id         String  @id @default(cuid())
+  teamId     String
+  round      String
+  eliminated Boolean @default(false)
+  confidence Float   @default(0)
+  reasoning  String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  team NationalTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, round])
+}
